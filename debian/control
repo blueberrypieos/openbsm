@@ -1,0 +1,28 @@
+Source: openbsm
+Section: libs
+Priority: optional
+Maintainer: Maxwell <maxwell@blueberrypieos.com>
+Build-Depends: pietoolchain (>= 0.1.0)
+Standards-Version: 4.7.3
+Homepage: https://github.com/apple-oss-distributions/OpenBSM
+Vcs-Git: https://github.com/blueberrypieos/openbsm.git -b blueberry-pie-os/latest
+Vcs-Browser: https://github.com/blueberrypieos/openbsm
+Rules-Requires-Root: no
+
+Package: libbsm
+Architecture: darwin-arm64
+Essential: yes
+Priority: required
+Depends: libsystem
+Description: BSM audit library
+ OpenBSM's library for creating and interpreting BSM audit records,
+ with audit token accessors and the upstream manual pages.
+
+Package: libbsm-dev
+Section: libdevel
+Priority: optional
+Architecture: darwin-arm64
+Depends: libbsm (= ${binary:Version})
+Description: BSM audit library: development files
+ Public OpenBSM headers for building programs against libbsm.
+ Kernel audit headers are supplied by xnu.
