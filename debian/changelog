@@ -1,3 +1,9 @@
+openbsm (21+ds3-2) blueberry-pie-os; urgency=medium
+
+  * auditd has Priority important. The base system starts it.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 12 Nov 2026 22:32:35 +0000
+
 openbsm (21+ds3-1) blueberry-pie-os; urgency=medium
 
   * New package auditd: auditd, audit, praudit, auditreduce and libauditd.

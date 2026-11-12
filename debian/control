@@ -29,7 +29,7 @@ Description: BSM audit library: development files
 
 Package: auditd
 Section: admin
-Priority: optional
+Priority: important
 Architecture: darwin-arm64
 Depends: libbsm (= ${binary:Version}), libsystem, blueberry-pie-os-init (>= 2)
 Recommends: logger
