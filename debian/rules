@@ -5,14 +5,35 @@
 include /usr/share/pietoolchain/rules.mk
 
 BSM     := $(SRCROOT)/openbsm/bsm
+BIN     := $(SRCROOT)/openbsm/bin
+ETC     := $(SRCROOT)/openbsm/etc
 SOURCES := $(addprefix openbsm/libbsm/,bsm_audit.c bsm_class.c bsm_control.c bsm_domain.c \
 	bsm_event.c bsm_flags.c bsm_io.c bsm_mask.c bsm_notify.c bsm_socket_type.c bsm_token.c \
 	bsm_user.c bsm_wrappers.c bsm_errno.c bsm_fcntl.c)
 OBJS    := $(patsubst %.c,$(OBJ)/%.o,$(SOURCES))
 DYLIB   := $(OBJ)/libbsm.0.dylib
+LIBAUDITD := $(OBJ)/libauditd.0.dylib
+MIGDIR  := $(OBJ)/mig
+MIGCOM  := $(TOOLCHAIN)/prefix/libexec/migcom
 FLAGS   := $(BASE_CFLAGS) -I$(SRCROOT)/openbsm -isystem $(SDK)/usr/local/include
 
+PROGS            := audit auditd auditreduce praudit
+audit_SRCS       := openbsm/bin/audit/audit.c
+auditd_SRCS      := openbsm/bin/auditd/audit_warn.c openbsm/bin/auditd/auditd.c \
+	openbsm/bin/auditd/auditd_darwin.c
+auditreduce_SRCS := openbsm/bin/auditreduce/auditreduce.c
+praudit_SRCS     := openbsm/bin/praudit/praudit.c
+audit_MIG        := $(MIGDIR)/auditd_controlUser.o
+auditd_MIG       := $(MIGDIR)/auditd_controlServer.o $(MIGDIR)/audit_triggersServer.o
+auditd_LIBS      := $(LIBAUDITD)
+PROG_BINS        := $(addprefix $(OBJ)/bin/,$(PROGS))
+
 $(OBJ)/%.o: $(SRCROOT)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(FLAGS) -c $< -o $@
+
+$(OBJ)/openbsm/bin/%.o: FLAGS += -I$(MIGDIR)
+$(OBJ)/openbsm/bin/%.o: $(SRCROOT)/openbsm/bin/%.c | $(MIGDIR)/.generated
 	@mkdir -p $(dir $@)
 	$(CC) $(FLAGS) -c $< -o $@
 
@@ -20,18 +41,49 @@ $(DYLIB): $(OBJS)
 	$(CC) $(BASE_LDFLAGS) -dynamiclib -install_name /usr/lib/libbsm.0.dylib \
 		-compatibility_version 1 -current_version 1 $(OBJS) -o $@
 
-install: $(DYLIB)
-	install -d $(ROOT)/usr/lib $(ROOT)/usr/include/bsm
-	install -m 755 $(DYLIB) $(ROOT)/usr/lib/
+$(LIBAUDITD): $(OBJ)/openbsm/libauditd/auditd_lib.o $(DYLIB)
+	$(CC) $(BASE_LDFLAGS) -dynamiclib -install_name /usr/lib/libauditd.0.dylib \
+		-compatibility_version 1 -current_version 1 $^ -o $@
+
+$(MIGDIR)/.generated: $(BIN)/auditd/auditd_control.defs
+	mkdir -p $(MIGDIR)
+	cd $(MIGDIR) && set -o pipefail && \
+	$(CC) $(BASE_CFLAGS) -E -x c $(BIN)/auditd/auditd_control.defs | \
+		$(MIGCOM) -user auditd_controlUser.c -header auditd_control.h \
+		-server auditd_controlServer.c -sheader auditd_controlServer.h && \
+	echo '#include <mach/audit_triggers.defs>' | $(CC) $(BASE_CFLAGS) -E -x c - | \
+		$(MIGCOM) -user /dev/null -header /dev/null \
+		-server audit_triggersServer.c -sheader audit_triggersServer.h
+	touch $@
+
+$(MIGDIR)/%.o: $(MIGDIR)/.generated
+	$(CC) $(FLAGS) -c $(MIGDIR)/$*.c -o $@
+
+define prog_rule
+$(OBJ)/bin/$(1): $$(patsubst %.c,$(OBJ)/%.o,$$($(1)_SRCS)) $$($(1)_MIG) $$($(1)_LIBS) $(DYLIB)
+	@mkdir -p $$(dir $$@)
+	$(CC) $(BASE_LDFLAGS) $$^ -o $$@
+endef
+$(foreach p,$(PROGS),$(eval $(call prog_rule,$(p))))
+
+install: $(DYLIB) $(LIBAUDITD) $(PROG_BINS)
+	install -d $(ROOT)/usr/lib $(ROOT)/usr/include/bsm $(ROOT)/usr/sbin
+	install -m 755 $(DYLIB) $(LIBAUDITD) $(ROOT)/usr/lib/
 	ln -sf libbsm.0.dylib $(ROOT)/usr/lib/libbsm.dylib
+	install -m 755 $(PROG_BINS) $(ROOT)/usr/sbin/
 	install -m 644 $(filter-out $(BSM)/audit.h $(BSM)/audit_record.h $(BSM)/audit_kevents.h $(BSM)/audit_internal.h,$(wildcard $(BSM)/*.h)) $(ROOT)/usr/include/bsm/
+	install -d $(ROOT)/etc/security
+	install -m 444 $(ETC)/audit_class $(ETC)/audit_event $(ROOT)/etc/security/
+	install -m 400 $(ETC)/audit_control $(ETC)/audit_user $(ROOT)/etc/security/
+	install -m 555 $(ETC)/audit_warn $(ROOT)/etc/security/
+	install -d -m 700 $(ROOT)/var/audit
 	install -d $(ROOT)/usr/share/man/man1
-	install -m 644 $(SRCROOT)/openbsm/bin/auditreduce/auditreduce.1 $(SRCROOT)/openbsm/bin/praudit/praudit.1 $(ROOT)/usr/share/man/man1/
+	install -m 644 $(BIN)/auditreduce/auditreduce.1 $(BIN)/praudit/praudit.1 $(ROOT)/usr/share/man/man1/
 	install -d $(ROOT)/usr/share/man/man3
 	install -m 644 $(SRCROOT)/openbsm/libbsm/au_class.3 $(SRCROOT)/openbsm/libbsm/au_control.3 $(SRCROOT)/openbsm/libbsm/au_domain.3 $(SRCROOT)/openbsm/libbsm/au_errno.3 $(SRCROOT)/openbsm/libbsm/au_event.3 $(SRCROOT)/openbsm/libbsm/au_fcntl_cmd.3 $(SRCROOT)/openbsm/libbsm/au_free_token.3 $(SRCROOT)/openbsm/libbsm/au_io.3 $(SRCROOT)/openbsm/libbsm/au_mask.3 $(SRCROOT)/openbsm/libbsm/au_open.3 $(SRCROOT)/openbsm/libbsm/au_socket_type.3 $(SRCROOT)/openbsm/libbsm/au_token.3 $(SRCROOT)/openbsm/libbsm/au_user.3 $(SRCROOT)/openbsm/libbsm/audit_submit.3 $(SRCROOT)/openbsm/libbsm/libbsm.3 $(ROOT)/usr/share/man/man3/
 	install -d $(ROOT)/usr/share/man/man5
 	install -m 644 $(SRCROOT)/openbsm/man/audit.log.5 $(SRCROOT)/openbsm/man/audit_class.5 $(SRCROOT)/openbsm/man/audit_control.5 $(SRCROOT)/openbsm/man/audit_event.5 $(SRCROOT)/openbsm/man/audit_user.5 $(SRCROOT)/openbsm/man/audit_warn.5 $(ROOT)/usr/share/man/man5/
 	install -d $(ROOT)/usr/share/man/man8
-	install -m 644 $(SRCROOT)/openbsm/bin/audit/audit.8 $(SRCROOT)/openbsm/bin/auditd/auditd.8 $(ROOT)/usr/share/man/man8/
+	install -m 644 $(BIN)/audit/audit.8 $(BIN)/auditd/auditd.8 $(ROOT)/usr/share/man/man8/
 
 .PHONY: install

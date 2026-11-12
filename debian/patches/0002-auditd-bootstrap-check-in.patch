@@ -1,0 +1,100 @@
+Description: Check in the control port with init
+ PIE has no launch_msg. auditd -l gets its control port from init with
+ bootstrap_check_in. init has set that port as the host's audit control
+ port. The kernel sends audit_analytics on the control port, and auditd
+ drops it.
+Author: The Blueberry Pie OS Authors
+Forwarded: not-needed
+Last-Update: 2026-11-11
+
+--- a/openbsm/bin/auditd/auditd_darwin.c
++++ b/openbsm/bin/auditd/auditd_darwin.c
+@@ -26,6 +26,9 @@
+  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  *
++ * Modified 2026-11-11: the control port is checked in with
++ * bootstrap_check_in, and audit_analytics messages are dropped.
++ *
+  * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd_darwin.c#5 $
+  */
+ 
+@@ -44,8 +47,8 @@
+ #include <bsm/libbsm.h>
+ 
+ #include <asl.h>
+-#include <launch.h>
+ #include <notify.h>
++#include <servers/bootstrap.h>
+ #include <mach/port.h>
+ #include <mach/mach_error.h>
+ #include <mach/mach_traps.h>
+@@ -238,48 +241,16 @@ auditd_get_state(void)
+ static mach_port_t
+ lookup_machport(const char *label)
+ {
+-	launch_data_t msg, msd, ld, cdict, to;
+ 	mach_port_t mp = MACH_PORT_NULL;
++	kern_return_t kr;
+ 
+-	msg = launch_data_new_string(LAUNCH_KEY_CHECKIN);
+-
+-	cdict = launch_msg(msg);
+-	if (cdict == NULL) {
+-		auditd_log_err("launch_msg(\"" LAUNCH_KEY_CHECKIN
+-		    "\") IPC failure: %m");
+-                return (MACH_PORT_NULL);
+-        }
+-
+-	if (launch_data_get_type(cdict) == LAUNCH_DATA_ERRNO) {
+-		errno = launch_data_get_errno(cdict);
+-		auditd_log_err("launch_data_get_type() can't get dict: %m");
+-		return (MACH_PORT_NULL);
+-	}
+-
+-	to = launch_data_dict_lookup(cdict, LAUNCH_JOBKEY_TIMEOUT);
+-	if (to) {
+-		max_idletime = launch_data_get_integer(to);
+-		auditd_log_debug("launchd timeout set to %d", max_idletime);
+-	} else {
+-		auditd_log_debug("launchd timeout not set, setting to 60");
+-		max_idletime = 60;
+-	}
+-
+-	msd = launch_data_dict_lookup(cdict, LAUNCH_JOBKEY_MACHSERVICES);
+-	if (msd == NULL) {
+-		auditd_log_err(
+-		    "launch_data_dict_lookup() can't get mach services");
+-		return (MACH_PORT_NULL);
+-	}
+-
+-	ld = launch_data_dict_lookup(msd, label);
+-	if (ld == NULL) {
+-		auditd_log_err("launch_data_dict_lookup can't find %s", label);
++	kr = bootstrap_check_in(bootstrap_port, label, &mp);
++	if (kr != BOOTSTRAP_SUCCESS) {
++		auditd_log_err("bootstrap_check_in(%s): %s", label,
++		    bootstrap_strerror(kr));
+ 		return (MACH_PORT_NULL);
+ 	}
+ 
+-	mp = launch_data_get_machport(ld);
+-
+ 	return (mp);
+ }
+ 
+@@ -450,6 +421,14 @@ audit_triggers(mach_port_t __unused audi
+ 
+ 	return (KERN_SUCCESS);
+ }
++
++kern_return_t
++audit_analytics(mach_port_t __unused audit_port, string_t __unused caller_id,
++    string_t __unused caller_name)
++{
++
++	return (KERN_SUCCESS);
++}
+ 
+ /*
+  * Implementation of the auditd_control() MIG simpleroutine.  Simply a 

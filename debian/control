@@ -26,3 +26,17 @@ Depends: libbsm (= ${binary:Version})
 Description: BSM audit library: development files
  Public OpenBSM headers for building programs against libbsm.
  Kernel audit headers are supplied by xnu.
+
+Package: auditd
+Section: admin
+Priority: optional
+Architecture: darwin-arm64
+Depends: libbsm (= ${binary:Version}), libsystem, blueberry-pie-os-init (>= 2)
+Recommends: logger
+Breaks: libbsm (<< 21+ds3-1)
+Replaces: libbsm (<< 21+ds3-1)
+Description: BSM audit daemon and tools
+ auditd writes the kernel's audit records to the trail in /var/audit,
+ and expires old trail files. audit controls auditd. praudit prints
+ audit records, and auditreduce selects them. The audit configuration
+ is in /etc/security.

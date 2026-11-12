@@ -1,0 +1,7 @@
+usr/sbin/*
+usr/lib/libauditd.0.dylib
+usr/share/man/man1/*
+usr/share/man/man5/audit_*.5
+usr/share/man/man8/*
+etc/security
+var/audit

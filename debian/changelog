@@ -1,3 +1,15 @@
+openbsm (21+ds3-1) blueberry-pie-os; urgency=medium
+
+  * New package auditd: auditd, audit, praudit, auditreduce and libauditd.
+    The manual pages of the programs and of their files move from libbsm.
+  * auditd ships /etc/security/audit_class, audit_control, audit_event,
+    audit_user and audit_warn, and /var/audit for the trail.
+  * auditd -l checks in its control port with init, in place of launchd.
+    It needs init 2, which makes that port.
+  * auditd recommends logger, which audit_warn calls.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Wed, 11 Nov 2026 22:14:25 +0000
+
 openbsm (21+ds2-1) blueberry-pie-os; urgency=medium
 
   * OpenBSM 21

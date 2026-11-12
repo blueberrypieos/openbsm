@@ -1,0 +1,6 @@
+debian/build/obj/mig/auditd_control.h
+debian/build/obj/mig/auditd_controlServer.c
+debian/build/obj/mig/auditd_controlServer.h
+debian/build/obj/mig/auditd_controlUser.c
+debian/build/obj/mig/audit_triggersServer.c
+debian/build/obj/mig/audit_triggersServer.h
