@@ -1,0 +1,8 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+set -e
+if [ "$1" = configure ]; then
+	dpkg-statoverride --list /private/var/audit > /dev/null ||
+		dpkg-statoverride --quiet --update --add '#0' '#0' 0700 /private/var/audit
+fi

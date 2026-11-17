@@ -77,6 +77,8 @@ install: $(DYLIB) $(LIBAUDITD) $(PROG_BINS)
 	install -m 400 $(ETC)/audit_control $(ETC)/audit_user $(ROOT)/etc/security/
 	install -m 555 $(ETC)/audit_warn $(ROOT)/etc/security/
 	install -d -m 700 $(ROOT)/var/audit
+	install -D -m 755 $(SRCROOT)/debian/auditd.postinst $(ROOT)/DEBIAN/postinst
+	install -D -m 755 $(SRCROOT)/debian/auditd.postrm $(ROOT)/DEBIAN/postrm
 	install -d $(ROOT)/usr/share/man/man1
 	install -m 644 $(BIN)/auditreduce/auditreduce.1 $(BIN)/praudit/praudit.1 $(ROOT)/usr/share/man/man1/
 	install -d $(ROOT)/usr/share/man/man3

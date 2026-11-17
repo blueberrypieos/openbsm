@@ -1,3 +1,14 @@
+openbsm (21+ds3-3) blueberry-pie-os; urgency=medium
+
+  * Build-Depend on pietoolchain-host and pietoolchain-sdk.
+  * The auditd postinst records the mode of /var/audit as a dpkg
+    statoverride, so it can be made again where the package does not create
+    it. A purge removes the record. auditd depends on base-files, whose
+    /etc/group gives the record its group name when the postinst runs in
+    an image build.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Mon, 16 Nov 2026 18:43:09 +0000
+
 openbsm (21+ds3-2) blueberry-pie-os; urgency=medium
 
   * auditd has Priority important. The base system starts it.
